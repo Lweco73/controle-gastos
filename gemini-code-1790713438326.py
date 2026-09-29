@@ -53,7 +53,10 @@ if perfil == "Filha (Fazer Pedido)":
     nome_filha = st.selectbox("Quem está pedindo?", ["Lorena", "Estela"])
     valor_solicitado = st.number_input("Valor solicitado (R$)", min_value=0.01, format="%.2f", step=1.00)
     data_pedido = st.date_input("Data necessária", value=datetime.date.today(), format="DD/MM/YYYY")
-    objetivo = st.text_input("Objetivo / Destinação (ex: Lanche, Transporte)")
+    objetivo = st.selectbox(
+    "Objetivo / Destinação", 
+    ["Lanche da Escola", "Transporte/Uber", "Roupas", "Passeio/Lazer", "Outros"]
+)
     botao_enviar = st.form_submit_button("Enviar Solicitação")
 
     if botao_enviar:
