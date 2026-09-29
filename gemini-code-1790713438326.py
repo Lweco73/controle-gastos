@@ -21,7 +21,7 @@ if "dados" not in st.session_state:
           datetime.date(2026, 9, 10),
           datetime.date(2026, 9, 25),
       ],
-      "Filha": ["Filha A", "Filha B"],
+      "Filha": ["Lorena", "Estela"],
       "Valor Solicitado": [45.00, 120.00],
       "Objetivo": ["Lanche da escola", "Material escolar"],
       "Status": ["Aprovado", "Pendente"],
@@ -61,7 +61,7 @@ if perfil == "Filha (Fazer Pedido)":
   st.subheader("📝 Nova Solicitação de Valor")
 
   with st.form("form_pedido", clear_on_submit=True):
-    nome_filha = st.selectbox("Quem está pedindo?", ["Filha A", "Filha B"])
+    nome_filha = st.selectbox("Quem está pedindo?", ["Lorena", "Estela"])
     valor_solicitado = st.number_input(
         "Valor solicitado (R$)", min_value=0.01, format="%.2f", step=1.00
     )
