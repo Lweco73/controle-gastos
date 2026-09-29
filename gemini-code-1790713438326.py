@@ -51,7 +51,6 @@ df = carregar_dados()
 # MENU DE PERFIL
 # ---------------------------------------------------------
 st.sidebar.header("👤 Quem está acessando?")
-# ALTERADO PARA RESPONSÁVEL
 perfil = st.sidebar.radio("Selecione o seu perfil:", ["Filha (Fazer Pedido)", "Responsável (Painel & Aprovação)", "Visualizar Painel / Gráficos"])
 
 # ---------------------------------------------------------
@@ -83,13 +82,9 @@ if perfil == "Filha (Fazer Pedido)":
         
         st.success("✅ Pedido gravado na planilha! Clique no botão abaixo para avisar:")
         
-        # WHATSAPP DO RESPONSÁVEL
         numero_responsavel = "5511992506787"
+        url_do_app = "https://controle-gastos-piolhos.streamlit.app/#dashboard-de-gastos" 
         
-        # ⚠️ ATENÇÃO: COLOQUE O LINK REAL DO SEU APLICATIVO ENTRE AS ASPAS ABAIXO:
-        url_do_app = "COLOQUE_AQUI_O_LINK_DO_SEU_APP" 
-        
-        # MENSAGEM ALTERADA PARA NÃO USAR O NOME REGINA
         mensagem = (
             f"Olá! A {nome_filha} solicitou R$ {valor_solicitado:.2f} para"
             f" '{objetivo}' em {data_pedido.strftime('%d/%m/%Y')}.\n\n"
@@ -99,10 +94,10 @@ if perfil == "Filha (Fazer Pedido)":
         
         st.markdown(f'<a href="{link_zap}" target="_blank"><button style="background-color:#25D366; color:white; padding:12px 24px; border:none; border-radius:6px; font-size:16px; font-weight: bold; cursor: pointer; text-decoration: none;">📲 Avisar Responsável no WhatsApp</button></a>', unsafe_allow_html=True)
       else:
-        st.error("⚠️️ Preencha o valor corretamente.")
+        st.error("⚠ Preencha o valor corretamente.")
 
 # ---------------------------------------------------------
-# TELA 2: RESPONSÁVEL (Antiga Regina)
+# TELA 2: RESPONSÁVEL
 # ---------------------------------------------------------
 elif perfil == "Responsável (Painel & Aprovação)":
   st.subheader("⚙️ Painel de Gestão e Aprovação (Responsável)")
@@ -125,10 +120,22 @@ elif perfil == "Responsável (Painel & Aprovação)":
         texto = f"ID {row['ID']} | {row['Status']} | {row['Filha']} | R$ {row['Valor Solicitado']:.2f} ({row['Objetivo']})"
         opcoes_dropdown.append(texto)
         
-    escolha_texto = st.selectbox("Selecione qual pedido deseja gerenciar:", opcoes_dropdown)
+    st.write("**Selecione qual pedido deseja gerenciar:**")
+    col_selecao, col_botao_apagar = st.columns([4, 1])
     
-    id_escolhido = int(escolha_texto.split("|")[0].replace("ID", "").strip())
-    linha_selecionada = df[df["ID"] == id_escolhido].iloc[0]
+    with col_selecao:
+        escolha_texto = st.selectbox("ID", opcoes_dropdown, label_visibility="collapsed")
+        id_escolhido = int(escolha_texto.split("|")[0].replace("ID", "").strip())
+        linha_selecionada = df[df["ID"] == id_escolhido].iloc[0]
+        
+    with col_botao_apagar:
+        with st.expander("🗑️ Apagar"):
+            if st.button("Confirmar", key="btn_apagar"):
+                celula = planilha.find(str(id_escolhido), in_column=1)
+                if celula:
+                    planilha.delete_row(celula.row)
+                    st.success("✅ Apagado!")
+                    st.rerun()
     
     status_opcoes = ["Pendente", "Aprovado", "Alterado", "Negado"]
     status_atual = linha_selecionada["Status"] if linha_selecionada["Status"] in status_opcoes else "Pendente"
@@ -151,19 +158,6 @@ elif perfil == "Responsável (Painel & Aprovação)":
           planilha.update_cell(celula.row, 8, observacao.strip())
           st.success("✅ Atualizado com sucesso!")
           st.rerun()
-
-    # =========================================================
-    # SEÇÃO: BOTÃO DE EXCLUSÃO
-    # =========================================================
-    st.markdown("---")
-    with st.expander("🗑️ Apagar esta Solicitação"):
-        st.warning(f"⚠️ **Atenção:** Isso vai apagar definitivamente o pedido **ID {id_escolhido}** da sua planilha do Google. Essa ação não tem volta.")
-        if st.button("Sim, apagar pedido agora"):
-            celula = planilha.find(str(id_escolhido), in_column=1)
-            if celula:
-                planilha.delete_row(celula.row)
-                st.success("✅ Pedido apagado com sucesso!")
-                st.rerun()
 
 # ---------------------------------------------------------
 # TELA 3: GRÁFICOS
