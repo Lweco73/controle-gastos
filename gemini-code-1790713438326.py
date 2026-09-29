@@ -43,7 +43,7 @@ df = carregar_dados()
 # MENU DE PERFIL
 # ---------------------------------------------------------
 st.sidebar.header("👤 Quem está acessando?")
-perfil = st.sidebar.radio("Selecione o seu perfil:", ["Filha (Fazer Pedido)", "Regina / Gestora (Painel & Aprovação)", "Visualizar Painel / Gráficos"])
+perfil = st.sidebar.radio("Selecione o seu perfil:", ["Filha (Fazer Pedido)", "Responsável / Gestor (Painel & Aprovação)", "Visualizar Painel / Gráficos"])
 
 # ---------------------------------------------------------
 # TELA 1: FILHA
@@ -100,9 +100,9 @@ if perfil == "Filha (Fazer Pedido)":
         st.error("⚠️ Preencha o valor corretamente.")
 
 # ---------------------------------------------------------
-# TELA 2: REGINA
+# TELA 2: RESPONSAVEL
 # ---------------------------------------------------------
-elif perfil == "Regina / Gestora (Painel & Aprovação)":
+elif perfil == "Responsável / Gestor (Painel & Aprovação)":
   st.subheader("⚙️ Painel de Gestão e Aprovação (Regina)")
   if df.empty:
     st.info("Nenhuma solicitação registrada.")
