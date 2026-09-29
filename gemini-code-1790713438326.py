@@ -5,6 +5,7 @@ import streamlit as st
 import json
 import gspread
 
+# Configuração inicial da página
 st.set_page_config(page_title="Controle de Despesas", page_icon="💰", layout="wide")
 st.title("💡 Gestão de Despesas e Solicitações")
 st.markdown("---")
@@ -49,18 +50,22 @@ perfil = st.sidebar.radio("Selecione o seu perfil:", ["Filha (Fazer Pedido)", "R
 # ---------------------------------------------------------
 if perfil == "Filha (Fazer Pedido)":
   st.subheader("📝 Nova Solicitação de Valor")
+  
   with st.form("form_pedido", clear_on_submit=True):
     nome_filha = st.selectbox("Quem está pedindo?", ["Lorena", "Estela"])
     valor_solicitado = st.number_input("Valor solicitado (R$)", min_value=0.01, format="%.2f", step=1.00)
     data_pedido = st.date_input("Data necessária", value=datetime.date.today(), format="DD/MM/YYYY")
+    
+    # Categorias pré-definidas para evitar erros
     objetivo = st.selectbox(
-    "Objetivo / Destinação", 
-    ["Lanche da Escola", "Transporte/Uber", "Roupas", "Passeio/Lazer", "Outros"]
-)
+        "Objetivo / Destinação", 
+        ["Lanche da Escola", "Transporte/Uber", "Material Escolar", "Passeio/Lazer", "Vestuário", "Outros"]
+    )
+    
     botao_enviar = st.form_submit_button("Enviar Solicitação")
 
     if botao_enviar:
-      if valor_solicitado > 0 and objetivo.strip() != "":
+      if valor_solicitado > 0:
         novo_id = int(df["ID"].max() + 1) if not df.empty and pd.notna(df["ID"].max()) else 1
         
         # Salva NA PLANILHA DO GOOGLE
@@ -69,19 +74,30 @@ if perfil == "Filha (Fazer Pedido)":
             data_pedido.strftime("%d/%m/%Y"), 
             nome_filha, 
             float(valor_solicitado), 
-            objetivo.strip(), 
+            objetivo, 
             "Pendente", 
             0.0, 
             ""
         ])
         
         st.success("✅ Pedido gravado na planilha! Clique no botão abaixo para avisar a Regina:")
+        
+        # CONFIGURAÇÃO DO WHATSAPP DA REGINA
         numero_regina = "5511992506787"
-        mensagem = f"Olá Regina! A {nome_filha} solicitou R$ {valor_solicitado:.2f} para '{objetivo.strip()}' em {data_pedido.strftime('%d/%m/%Y')}."
+        
+        # ⚠️ ATENÇÃO: COLOQUE O LINK REAL DO SEU APLICATIVO ENTRE AS ASPAS ABAIXO:
+        url_do_app = "https://controle-gastos-piolhos.streamlit.app/#dashboard-de-gastos" 
+        
+        mensagem = (
+            f"Olá Regina! A {nome_filha} solicitou R$ {valor_solicitado:.2f} para"
+            f" '{objetivo}' em {data_pedido.strftime('%d/%m/%Y')}.\n\n"
+            f"👉 Acesse o painel para aprovar ou alterar: {url_do_app}"
+        )
         link_zap = f"https://wa.me/{numero_regina}?text={urllib.parse.quote(mensagem)}"
+        
         st.markdown(f'<a href="{link_zap}" target="_blank"><button style="background-color:#25D366; color:white; padding:12px 24px; border:none; border-radius:6px; font-size:16px; font-weight: bold; cursor: pointer; text-decoration: none;">📲 Avisar Regina no WhatsApp</button></a>', unsafe_allow_html=True)
       else:
-        st.error("⚠️ Preencha o valor e o objetivo corretamente.")
+        st.error("⚠️ Preencha o valor corretamente.")
 
 # ---------------------------------------------------------
 # TELA 2: REGINA
@@ -91,29 +107,50 @@ elif perfil == "Regina / Gestora (Painel & Aprovação)":
   if df.empty:
     st.info("Nenhuma solicitação registrada.")
   else:
-    st.dataframe(df, use_container_width=True, column_config={
+    # Mostra a tabela com os pedidos mais recentes primeiro
+    df_reverso = df.sort_values(by="ID", ascending=False)
+    
+    st.dataframe(df_reverso, use_container_width=True, column_config={
         "Data": st.column_config.DateColumn("Data", format="DD/MM/YYYY"),
         "Valor Solicitado": st.column_config.NumberColumn("Valor Solicitado", format="R$ %.2f"),
         "Valor Pago": st.column_config.NumberColumn("Valor Pago", format="R$ %.2f")
     })
 
-    st.write("### Atualizar Status")
-    id_escolhido = st.selectbox("Selecione o ID da solicitação:", df["ID"].tolist())
+    st.markdown("---")
+    st.write("### 📝 Atualizar Status ou Valor")
+    
+    # Criar uma lista amigável e inteligente para o menu dropdown (mais recentes primeiro)
+    opcoes_dropdown = []
+    for index, row in df_reverso.iterrows():
+        texto = f"ID {row['ID']} | {row['Status']} | {row['Filha']} | R$ {row['Valor Solicitado']:.2f} ({row['Objetivo']})"
+        opcoes_dropdown.append(texto)
+        
+    escolha_texto = st.selectbox("Selecione qual pedido deseja gerenciar:", opcoes_dropdown)
+    
+    # Extrai apenas o número do ID da escolha que a Regina clicou
+    id_escolhido = int(escolha_texto.split("|")[0].replace("ID", "").strip())
     linha_selecionada = df[df["ID"] == id_escolhido].iloc[0]
-
-    st.info(f"**Detalhes:** {linha_selecionada['Filha']} pediu R$ {linha_selecionada['Valor Solicitado']:.2f} para *{linha_selecionada['Objetivo']}*")
     
     status_opcoes = ["Pendente", "Aprovado", "Alterado", "Negado"]
     status_atual = linha_selecionada["Status"] if linha_selecionada["Status"] in status_opcoes else "Pendente"
     
     with st.form("form_atualizacao"):
       novo_status = st.selectbox("Novo Status", status_opcoes, index=status_opcoes.index(status_atual))
-      valor_pago = st.number_input("Valor Pago/Liberado (R$)", value=float(linha_selecionada["Valor Pago"]) if linha_selecionada["Valor Pago"] > 0 else float(linha_selecionada["Valor Solicitado"]), format="%.2f")
-      observacao = st.text_input("Observação", value=str(linha_selecionada["Observacao"]))
+      
+      col1, col2 = st.columns(2)
+      # Campo para corrigir o valor que a filha solicitou
+      novo_valor_solicitado = col1.number_input("Corrigir Valor Solicitado (R$)", value=float(linha_selecionada["Valor Solicitado"]), format="%.2f")
+      # Campo do valor que a Regina efetivamente pagou
+      valor_pago = col2.number_input("Valor Pago/Liberado (R$)", value=float(linha_selecionada["Valor Pago"]) if linha_selecionada["Valor Pago"] > 0 else float(linha_selecionada["Valor Solicitado"]), format="%.2f")
+      
+      observacao = st.text_input("Observação (Motivo de alteração/negação ou dados do PIX)", value=str(linha_selecionada["Observacao"]))
+      
       if st.form_submit_button("Salvar Alteração na Planilha"):
         # Encontra a linha exata na planilha pelo ID
         celula = planilha.find(str(id_escolhido), in_column=1)
         if celula:
+          # Atualiza Coluna D (Valor Solicitado), Coluna F (Status), Coluna G (Valor Pago) e H (Observação)
+          planilha.update_cell(celula.row, 4, float(novo_valor_solicitado))
           planilha.update_cell(celula.row, 6, novo_status)
           planilha.update_cell(celula.row, 7, float(valor_pago))
           planilha.update_cell(celula.row, 8, observacao.strip())
@@ -125,9 +162,9 @@ elif perfil == "Regina / Gestora (Painel & Aprovação)":
 # TELA 3: GRÁFICOS
 # ---------------------------------------------------------
 else:
-  st.subheader("📊 Dashboard de Gastos")
+  st.subheader("📊 Dashboard de Gastos e Destinação dos Recursos")
   if df.empty:
-    st.info("Ainda não há dados.")
+    st.info("Ainda não há dados suficientes para gerar gráficos.")
   else:
     total_solicitado = df["Valor Solicitado"].sum()
     df_aprovados = df[df["Status"].isin(["Aprovado", "Alterado"])]
@@ -137,6 +174,22 @@ else:
     col1.metric("Total Solicitado Geral", f"R$ {total_solicitado:.2f}")
     col2.metric("Total Efetivamente Pago", f"R$ {total_pago:.2f}")
 
+    st.markdown("---")
+
     if not df_aprovados.empty:
       st.write("### 👧 Gastos Totais por Filha (Aprovados/Alterados)")
       st.bar_chart(df_aprovados.groupby("Filha")["Valor Pago"].sum())
+    else:
+      st.info("Nenhum gasto aprovado registrado ainda para exibir no gráfico.")
+
+    st.write("### 📋 Histórico Consolidado Completo")
+    # Forçamos o formato da tabela para DD/MM/YYYY e moeda para visualização geral
+    st.dataframe(
+        df.sort_values(by="ID", ascending=False), 
+        use_container_width=True,
+        column_config={
+            "Data": st.column_config.DateColumn("Data", format="DD/MM/YYYY"),
+            "Valor Solicitado": st.column_config.NumberColumn("Valor Solicitado", format="R$ %.2f"),
+            "Valor Pago": st.column_config.NumberColumn("Valor Pago", format="R$ %.2f")
+        }
+    )
