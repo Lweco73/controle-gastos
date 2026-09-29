@@ -25,9 +25,14 @@ planilha = conectar_planilha()
 def carregar_dados():
     registros = planilha.get_all_records()
     if not registros:
-        return pd.DataFrame(columns=["ID", "Data", "Filha", "Valor Solicitado", "Objetivo", "Status", "Valor Pago", "Observacao"])
+        return pd.DataFrame(columns=["ID", "Data", "Filha", "Valor Solicitado", "Objetivo", "Status", "Valor Pago", "Observacao", "Descricao Pedido"])
     
     df_temp = pd.DataFrame(registros)
+    
+    # Garantir que a coluna 'Descricao Pedido' exista mesmo se a planilha antiga não tiver
+    if "Descricao Pedido" not in df_temp.columns:
+        df_temp["Descricao Pedido"] = ""
+
     df_temp["Data"] = pd.to_datetime(df_temp["Data"], format="%d/%m/%Y", errors="coerce").dt.date
     
     def limpar_moeda(valor):
@@ -69,26 +74,37 @@ if perfil == "Filha (Fazer Pedido)":
         ["Lanche da Escola", "Transporte/Uber", "Material Escolar", "Passeio/Lazer", "Vestuário", "Outros"]
     )
     
+    # NOVO CAMPO: Descrição detalhada opcional
+    descricao_pedido = st.text_input("Descrição do pedido (Opcional - ex: Livro de Biologia, Lanche na padaria)")
+    
     botao_enviar = st.form_submit_button("Enviar Solicitação")
 
     if botao_enviar:
       if valor_solicitado > 0:
         novo_id = int(df["ID"].max() + 1) if not df.empty and pd.notna(df["ID"].max()) else 1
         
+        # Salva na planilha (incluindo a descrição na coluna I)
         planilha.append_row([
-            novo_id, data_pedido.strftime("%d/%m/%Y"), nome_filha, 
-            float(valor_solicitado), objetivo, "Pendente", 0.0, ""
+            novo_id, 
+            data_pedido.strftime("%d/%m/%Y"), 
+            nome_filha, 
+            float(valor_solicitado), 
+            objetivo, 
+            "Pendente", 
+            0.0, 
+            "", 
+            descricao_pedido.strip()
         ])
         
         st.success("✅ Pedido gravado na planilha! Clique no botão abaixo para avisar:")
         
         numero_responsavel = "5511992506787"
-        # LINK DO APLICATIVO INSERIDO ABAIXO:
         url_do_app = "https://controle-gastos-piolhos.streamlit.app/#dashboard-de-gastos" 
         
+        detalhe_msg = f" ({descricao_pedido.strip()})" if descricao_pedido.strip() else ""
         mensagem = (
             f"Olá! A {nome_filha} solicitou R$ {valor_solicitado:.2f} para"
-            f" '{objetivo}' em {data_pedido.strftime('%d/%m/%Y')}.\n\n"
+            f" '{objetivo}'{detalhe_msg} em {data_pedido.strftime('%d/%m/%Y')}.\n\n"
             f"👉 Acesse o painel para aprovar ou alterar: {url_do_app}"
         )
         link_zap = f"https://wa.me/{numero_responsavel}?text={urllib.parse.quote(mensagem)}"
@@ -107,7 +123,6 @@ elif perfil == "Responsável (Painel & Aprovação)":
   else:
     df_reverso = df.sort_values(by="ID", ascending=False)
     
-    # ⚠️ AQUI: height=250 limita a visão a 6 linhas e cria o scrolldown!
     st.dataframe(df_reverso, height=250, use_container_width=True, column_config={
         "Data": st.column_config.DateColumn("Data", format="DD/MM/YYYY"),
         "Valor Solicitado": st.column_config.NumberColumn("Valor Solicitado", format="R$ %.2f"),
@@ -119,7 +134,8 @@ elif perfil == "Responsável (Painel & Aprovação)":
     
     opcoes_dropdown = []
     for index, row in df_reverso.iterrows():
-        texto = f"ID {row['ID']} | {row['Status']} | {row['Filha']} | R$ {row['Valor Solicitado']:.2f} ({row['Objetivo']})"
+        desc_extra = f" - {row['Descricao Pedido']}" if pd.notna(row['Descricao Pedido']) and row['Descricao Pedido'] != "" else ""
+        texto = f"ID {row['ID']} | {row['Status']} | {row['Filha']} | R$ {row['Valor Solicitado']:.2f} ({row['Objetivo']}{desc_extra})"
         opcoes_dropdown.append(texto)
         
     st.write("**Selecione qual pedido deseja gerenciar:**")
@@ -139,6 +155,10 @@ elif perfil == "Responsável (Painel & Aprovação)":
                     st.success("✅ Apagado!")
                     st.rerun()
     
+    # Exibir a descrição detalhada para a Responsável ler com facilidade
+    if pd.notna(linha_selecionada['Descricao Pedido']) and linha_selecionada['Descricao Pedido'] != "":
+        st.info(f"📌 **Detalhes informados pela filha:** {linha_selecionada['Descricao Pedido']}")
+
     status_opcoes = ["Pendente", "Aprovado", "Alterado", "Negado"]
     status_atual = linha_selecionada["Status"] if linha_selecionada["Status"] in status_opcoes else "Pendente"
     
