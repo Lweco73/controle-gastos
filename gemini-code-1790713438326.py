@@ -31,10 +31,32 @@ def carregar_dados():
         return pd.DataFrame(columns=["ID", "Data", "Filha", "Valor Solicitado", "Objetivo", "Status", "Valor Pago", "Observacao"])
     
     df_temp = pd.DataFrame(registros)
-    # Formata datas e números para o sistema entender
+    # Formata datas
     df_temp["Data"] = pd.to_datetime(df_temp["Data"], format="%d/%m/%Y", errors="coerce").dt.date
-    df_temp["Valor Solicitado"] = pd.to_numeric(df_temp["Valor Solicitado"].replace({',': '.'}, regex=True), errors='coerce')
-    df_temp["Valor Pago"] = pd.to_numeric(df_temp["Valor Pago"].replace({',': '.'}, regex=True), errors='coerce')
+    
+    # Função interna para limpar o "R$", espaços e formatação brasileira
+    def limpar_moeda(valor):
+        if pd.isna(valor) or valor == "":
+            return 0.0
+        if isinstance(valor, (int, float)):
+            return float(valor)
+        
+        # Converte para texto, remove R$ e espaços
+        v_str = str(valor).replace("R$", "").replace(" ", "").replace("\xa0", "").strip()
+        
+        # Se tiver vírgula (ex: 1.500,00), remove o ponto e troca vírgula por ponto
+        if "," in v_str:
+            v_str = v_str.replace(".", "").replace(",", ".")
+            
+        try:
+            return float(v_str)
+        except:
+            return 0.0
+
+    # Aplica a limpeza nas duas colunas financeiras
+    df_temp["Valor Solicitado"] = df_temp["Valor Solicitado"].apply(limpar_moeda)
+    df_temp["Valor Pago"] = df_temp["Valor Pago"].apply(limpar_moeda)
+    
     return df_temp
 
 df = carregar_dados()
