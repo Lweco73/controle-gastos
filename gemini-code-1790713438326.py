@@ -83,6 +83,7 @@ if perfil == "Filha (Fazer Pedido)":
         st.success("✅ Pedido gravado na planilha! Clique no botão abaixo para avisar:")
         
         numero_responsavel = "5511992506787"
+        # LINK DO APLICATIVO INSERIDO ABAIXO:
         url_do_app = "https://controle-gastos-piolhos.streamlit.app/#dashboard-de-gastos" 
         
         mensagem = (
@@ -106,7 +107,8 @@ elif perfil == "Responsável (Painel & Aprovação)":
   else:
     df_reverso = df.sort_values(by="ID", ascending=False)
     
-    st.dataframe(df_reverso, use_container_width=True, column_config={
+    # ⚠️ AQUI: height=250 limita a visão a 6 linhas e cria o scrolldown!
+    st.dataframe(df_reverso, height=250, use_container_width=True, column_config={
         "Data": st.column_config.DateColumn("Data", format="DD/MM/YYYY"),
         "Valor Solicitado": st.column_config.NumberColumn("Valor Solicitado", format="R$ %.2f"),
         "Valor Pago": st.column_config.NumberColumn("Valor Pago", format="R$ %.2f")
