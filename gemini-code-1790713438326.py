@@ -103,7 +103,7 @@ if perfil == "Filha (Fazer Pedido)":
 # TELA 2: RESPONSAVEL
 # ---------------------------------------------------------
 elif perfil == "Responsável / Gestor (Painel & Aprovação)":
-  st.subheader("⚙️ Painel de Gestão e Aprovação (Regina)")
+  st.subheader("⚙️ Painel de Gestão e Aprovação (Responsavel)")
   if df.empty:
     st.info("Nenhuma solicitação registrada.")
   else:
