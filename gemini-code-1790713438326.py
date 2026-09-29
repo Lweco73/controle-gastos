@@ -65,9 +65,14 @@ if perfil == "Filha (Fazer Pedido)":
     valor_solicitado = st.number_input(
         "Valor solicitado (R$)", min_value=0.01, format="%.2f", step=1.00
     )
+    
+    # ⚠️ AQUI FORÇAMOS O FORMATO DO CALENDÁRIO PARA DD/MM/YYYY
     data_pedido = st.date_input(
-        "Data necessária", value=datetime.date.today()
+        "Data necessária", 
+        value=datetime.date.today(),
+        format="DD/MM/YYYY" 
     )
+    
     objetivo = st.text_input(
         "Objetivo / Destinação (ex: Lanche, Transporte, etc.)"
     )
@@ -133,12 +138,17 @@ elif perfil == "Regina / Gestora (Painel & Aprovação)":
     st.info("Nenhuma solicitação registrada no momento.")
   else:
     st.write("### Solicitações Registradas")
-    # Exibição com data formatada DD/MM/YYYY
-    df_exibicao = df.copy()
-    df_exibicao["Data"] = pd.to_datetime(df_exibicao["Data"]).dt.strftime(
-        "%d/%m/%Y"
+    
+    # ⚠️ AQUI FORÇAMOS O FORMATO DA TABELA PARA DD/MM/YYYY DE FORMA NATIVA
+    st.dataframe(
+        df, 
+        use_container_width=True,
+        column_config={
+            "Data": st.column_config.DateColumn("Data", format="DD/MM/YYYY"),
+            "Valor Solicitado": st.column_config.NumberColumn("Valor Solicitado", format="R$ %.2f"),
+            "Valor Pago": st.column_config.NumberColumn("Valor Pago", format="R$ %.2f")
+        }
     )
-    st.dataframe(df_exibicao, use_container_width=True)
 
     st.markdown("---")
     st.write("### Atualizar Status de um Pedido")
@@ -225,9 +235,14 @@ else:
       st.info("Nenhum gasto aprovado registrado ainda para exibir no gráfico.")
 
     st.write("### 📋 Histórico Consolidado Completo")
-    # Exibição com data formatada DD/MM/YYYY
-    df_exibicao_geral = df.copy()
-    df_exibicao_geral["Data"] = pd.to_datetime(
-        df_exibicao_geral["Data"]
-    ).dt.strftime("%d/%m/%Y")
-    st.dataframe(df_exibicao_geral, use_container_width=True)
+    
+    # ⚠️ AQUI TAMBÉM FORÇAMOS O FORMATO DA TABELA PARA DD/MM/YYYY E MOEDA
+    st.dataframe(
+        df, 
+        use_container_width=True,
+        column_config={
+            "Data": st.column_config.DateColumn("Data", format="DD/MM/YYYY"),
+            "Valor Solicitado": st.column_config.NumberColumn("Valor Solicitado", format="R$ %.2f"),
+            "Valor Pago": st.column_config.NumberColumn("Valor Pago", format="R$ %.2f")
+        }
+    )
