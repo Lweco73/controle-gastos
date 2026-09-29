@@ -50,8 +50,8 @@ perfil = st.sidebar.radio(
 
 st.sidebar.markdown("---")
 st.sidebar.info(
-    "💡 **Dica:** O sistema registra os pedidos e gera um atalho rápido para "
-    "aviso via WhatsApp."
+    "💡 **Dica:** O sistema registra os pedidos e gera um atalho rápido para"
+    " aviso via WhatsApp."
 )
 
 # ---------------------------------------------------------
@@ -69,7 +69,7 @@ if perfil == "Filha (Fazer Pedido)":
         "Data necessária", value=datetime.date.today()
     )
     objetivo = st.text_input(
-        "Objetivo / Destinação (ex: Lanche, Xerox, Livro, Transporte)"
+        "Objetivo / Destinação (ex: Lanche, Transporte, etc.)"
     )
 
     botao_enviar = st.form_submit_button("Enviar Solicitação")
@@ -100,9 +100,8 @@ if perfil == "Filha (Fazer Pedido)":
             " avisar a Regina no WhatsApp:"
         )
 
-        # CONFIGURAÇÃO DO WHATSAPP
-        # ⚠️ Insira o número da Regina com DDI e DDD (Ex: 5511999999999)
-        numero_regina = "5511999999999"
+        # CONFIGURAÇÃO DO WHATSAPP DA REGINA
+        numero_regina = "5511992506787"
         mensagem = (
             f"Olá Regina! A {nome_filha} solicitou R$ {valor_solicitado:.2f} para"
             f" '{objetivo.strip()}' em"
@@ -134,7 +133,12 @@ elif perfil == "Regina / Gestora (Painel & Aprovação)":
     st.info("Nenhuma solicitação registrada no momento.")
   else:
     st.write("### Solicitações Registradas")
-    st.dataframe(df, use_container_width=True)
+    # Exibição com data formatada DD/MM/YYYY
+    df_exibicao = df.copy()
+    df_exibicao["Data"] = pd.to_datetime(df_exibicao["Data"]).dt.strftime(
+        "%d/%m/%Y"
+    )
+    st.dataframe(df_exibicao, use_container_width=True)
 
     st.markdown("---")
     st.write("### Atualizar Status de um Pedido")
@@ -204,7 +208,6 @@ else:
     st.info("Ainda não há dados suficientes para gerar gráficos.")
   else:
     total_solicitado = df["Valor Solicitado"].sum()
-    # Considera valores pagos apenas de status Aprovado ou Alterado
     df_aprovados = df[df["Status"].isin(["Aprovado", "Alterado"])]
     total_pago = df_aprovados["Valor Pago"].sum() if not df_aprovados.empty else 0.0
 
@@ -222,4 +225,9 @@ else:
       st.info("Nenhum gasto aprovado registrado ainda para exibir no gráfico.")
 
     st.write("### 📋 Histórico Consolidado Completo")
-    st.dataframe(df, use_container_width=True)
+    # Exibição com data formatada DD/MM/YYYY
+    df_exibicao_geral = df.copy()
+    df_exibicao_geral["Data"] = pd.to_datetime(
+        df_exibicao_geral["Data"]
+    ).dt.strftime("%d/%m/%Y")
+    st.dataframe(df_exibicao_geral, use_container_width=True)
