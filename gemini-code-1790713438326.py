@@ -5,14 +5,16 @@ import streamlit as st
 import json
 import gspread
 
-# Configuração inicial da página
+# =========================================================
+# CONFIGURAÇÃO DA PÁGINA
+# =========================================================
 st.set_page_config(page_title="Controle de Despesas", page_icon="💰", layout="wide")
 st.title("💡 Gestão de Despesas e Solicitações")
 st.markdown("---")
 
-# ---------------------------------------------------------
-# CONEXÃO SEGURA COM O GOOGLE SHEETS
-# ---------------------------------------------------------
+# =========================================================
+# CONEXÃO BLINDADA COM O GOOGLE SHEETS
+# =========================================================
 @st.cache_resource
 def conectar_google_sheets():
     cred_dict = json.loads(st.secrets["google_credentials"])
@@ -22,31 +24,31 @@ def conectar_google_sheets():
 
 sh, planilha = conectar_google_sheets()
 
-# Função robusta de carregamento com limpeza e tratamento de tipos
+# =========================================================
+# CARREGAMENTO E TRATAMENTO DE DADOS (COM TRAVA DE SEGURANÇA)
+# =========================================================
 def carregar_dados():
     try:
         registros = planilha.get_all_records()
     except Exception as e:
-        st.error(f"Erro ao comunicar com o Google Sheets: {e}")
-        return pd.DataFrame(columns=["ID", "Data", "Filha", "Valor Solicitado", "Objetivo", "Status", "Valor Pago", "Observacao", "Descricao Pedido"])
+        # TRAVA DE SEGURANÇA: Se o Google falhar, para o app aqui para não corromper IDs.
+        st.error("⚠️ Falha de comunicação com o Google Sheets. Recarregue a página em alguns instantes.")
+        st.stop()
 
     if not registros:
         return pd.DataFrame(columns=["ID", "Data", "Filha", "Valor Solicitado", "Objetivo", "Status", "Valor Pago", "Observacao", "Descricao Pedido"])
     
     df_temp = pd.DataFrame(registros)
     
-    # Garantir colunas essenciais caso a planilha esteja em formato antigo
-    for col in ["ID", "Data", "Filha", "Valor Solicitado", "Objetivo", "Status", "Valor Pago", "Observacao", "Descricao Pedido"]:
+    # Injeta colunas faltantes para retrocompatibilidade
+    colunas_obrigatorias = ["ID", "Data", "Filha", "Valor Solicitado", "Objetivo", "Status", "Valor Pago", "Observacao", "Descricao Pedido"]
+    for col in colunas_obrigatorias:
         if col not in df_temp.columns:
             df_temp[col] = ""
 
-    # Tratamento de Datas
     df_temp["Data"] = pd.to_datetime(df_temp["Data"], format="%d/%m/%Y", errors="coerce").dt.date
-    
-    # Tratamento seguro de IDs para evitar erros numéricos
     df_temp["ID"] = pd.to_numeric(df_temp["ID"], errors="coerce").fillna(0).astype(int)
 
-    # Limpeza de formatação monetária (remove R$, espaços e converte vírgula)
     def limpar_moeda(valor):
         if pd.isna(valor) or valor == "": return 0.0
         if isinstance(valor, (int, float)): return float(valor)
@@ -60,19 +62,20 @@ def carregar_dados():
 
     df_temp["Valor Solicitado"] = df_temp["Valor Solicitado"].apply(limpar_moeda)
     df_temp["Valor Pago"] = df_temp["Valor Pago"].apply(limpar_moeda)
+    
     return df_temp
 
 df = carregar_dados()
 
-# ---------------------------------------------------------
-# MENU DE PERFIL
-# ---------------------------------------------------------
+# =========================================================
+# MENU LATERAL
+# =========================================================
 st.sidebar.header("👤 Quem está acessando?")
 perfil = st.sidebar.radio("Selecione o seu perfil:", ["Filha (Fazer Pedido)", "Responsável (Painel & Aprovação)", "Visualizar Painel / Gráficos"])
 
-# ---------------------------------------------------------
+# =========================================================
 # TELA 1: FILHA
-# ---------------------------------------------------------
+# =========================================================
 if perfil == "Filha (Fazer Pedido)":
   st.subheader("📝 Nova Solicitação de Valor")
   
@@ -92,7 +95,10 @@ if perfil == "Filha (Fazer Pedido)":
 
     if botao_enviar:
       if valor_solicitado > 0:
-        novo_id = int(df["ID"].max() + 1) if not df.empty and pd.notna(df["ID"].max()) and df["ID"].max() > 0 else 1
+        # GERAÇÃO DE ID EM TEMPO REAL DIRETO DO SERVIDOR (Evita duplicidade em envios seguidos)
+        ids_na_planilha = planilha.col_values(1)[1:] # Pula o cabeçalho
+        ids_numericos = [int(i) for i in ids_na_planilha if str(i).isdigit()]
+        novo_id = max(ids_numericos) + 1 if ids_numericos else 1
         
         planilha.append_row([
             novo_id, 
@@ -123,11 +129,12 @@ if perfil == "Filha (Fazer Pedido)":
       else:
         st.error("⚠ Preencha o valor corretamente.")
 
-# ---------------------------------------------------------
+# =========================================================
 # TELA 2: RESPONSÁVEL
-# ---------------------------------------------------------
+# =========================================================
 elif perfil == "Responsável (Painel & Aprovação)":
-  st.subheader("⚙️️ Painel de Gestão e Aprovação (Responsável)")
+  st.subheader("⚙️ Painel de Gestão e Aprovação (Responsável)")
+  
   if df.empty or df["ID"].max() == 0:
     st.info("Nenhuma solicitação registrada.")
   else:
@@ -190,9 +197,9 @@ elif perfil == "Responsável (Painel & Aprovação)":
           st.success("✅ Atualizado com sucesso!")
           st.rerun()
 
-# ---------------------------------------------------------
+# =========================================================
 # TELA 3: GRÁFICOS
-# ---------------------------------------------------------
+# =========================================================
 else:
   st.subheader("📊 Dashboard de Gastos e Destinação dos Recursos")
   if df.empty or df["ID"].max() == 0:
