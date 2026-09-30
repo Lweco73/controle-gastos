@@ -11,30 +11,42 @@ st.title("💡 Gestão de Despesas e Solicitações")
 st.markdown("---")
 
 # ---------------------------------------------------------
-# CONEXÃO COM O GOOGLE SHEETS
+# CONEXÃO SEGURA COM O GOOGLE SHEETS
 # ---------------------------------------------------------
 @st.cache_resource
-def conectar_planilha():
+def conectar_google_sheets():
     cred_dict = json.loads(st.secrets["google_credentials"])
     gc = gspread.service_account_from_dict(cred_dict)
     sh = gc.open("Controle Despesas Filhas")
     return sh, sh.sheet1
 
-# Retorna a planilha inteira (sh) e a aba principal (sheet1)
-sh, planilha = conectar_planilha()
+sh, planilha = conectar_google_sheets()
 
+# Função robusta de carregamento com limpeza e tratamento de tipos
 def carregar_dados():
-    registros = planilha.get_all_records()
+    try:
+        registros = planilha.get_all_records()
+    except Exception as e:
+        st.error(f"Erro ao comunicar com o Google Sheets: {e}")
+        return pd.DataFrame(columns=["ID", "Data", "Filha", "Valor Solicitado", "Objetivo", "Status", "Valor Pago", "Observacao", "Descricao Pedido"])
+
     if not registros:
         return pd.DataFrame(columns=["ID", "Data", "Filha", "Valor Solicitado", "Objetivo", "Status", "Valor Pago", "Observacao", "Descricao Pedido"])
     
     df_temp = pd.DataFrame(registros)
     
-    if "Descricao Pedido" not in df_temp.columns:
-        df_temp["Descricao Pedido"] = ""
+    # Garantir colunas essenciais caso a planilha esteja em formato antigo
+for col in ["ID", "Data", "Filha", "Valor Solicitado", "Objetivo", "Status", "Valor Pago", "Observacao", "Descricao Pedido"]:
+        if col not in df_temp.columns:
+            df_temp[col] = ""
 
+    # Tratamento de Datas
     df_temp["Data"] = pd.to_datetime(df_temp["Data"], format="%d/%m/%Y", errors="coerce").dt.date
     
+    # Tratamento seguro de IDs para evitar erros numéricos
+    df_temp["ID"] = pd.to_numeric(df_temp["ID"], errors="coerce").fillna(0).astype(int)
+
+    # Limpeza de formatação monetária (remove R$, espaços e converte vírgula)
     def limpar_moeda(valor):
         if pd.isna(valor) or valor == "": return 0.0
         if isinstance(valor, (int, float)): return float(valor)
@@ -80,7 +92,8 @@ if perfil == "Filha (Fazer Pedido)":
 
     if botao_enviar:
       if valor_solicitado > 0:
-        novo_id = int(df["ID"].max() + 1) if not df.empty and pd.notna(df["ID"].max()) else 1
+        # Cálculo seguro de ID (se vazio começa em 1)
+        novo_id = int(df["ID"].max() + 1) if not df.empty and pd.notna(df["ID"].max()) and df["ID"].max() > 0 else 1
         
         planilha.append_row([
             novo_id, 
@@ -116,7 +129,7 @@ if perfil == "Filha (Fazer Pedido)":
 # ---------------------------------------------------------
 elif perfil == "Responsável (Painel & Aprovação)":
   st.subheader("⚙️ Painel de Gestão e Aprovação (Responsável)")
-  if df.empty:
+  if df.empty or df["ID"].max() == 0:
     st.info("Nenhuma solicitação registrada.")
   else:
     df_reverso = df.sort_values(by="ID", ascending=False)
@@ -149,9 +162,8 @@ elif perfil == "Responsável (Painel & Aprovação)":
             if st.button("Confirmar", key="btn_apagar"):
                 celula = planilha.find(str(id_escolhido), in_column=1)
                 if celula:
-                    # Correção aplicada: deleta a linha corretamente utilizando a aba referenciada
                     planilha.delete_rows(celula.row)
-                    st.success("✅ Apagado!")
+                    st.success("✅ Apagado com sucesso!")
                     st.rerun()
     
     if pd.notna(linha_selecionada['Descricao Pedido']) and linha_selecionada['Descricao Pedido'] != "":
@@ -184,7 +196,7 @@ elif perfil == "Responsável (Painel & Aprovação)":
 # ---------------------------------------------------------
 else:
   st.subheader("📊 Dashboard de Gastos e Destinação dos Recursos")
-  if df.empty:
+  if df.empty or df["ID"].max() == 0:
     st.info("Ainda não há dados suficientes para gerar gráficos.")
   else:
     total_solicitado = df["Valor Solicitado"].sum()
