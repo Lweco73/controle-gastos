@@ -162,16 +162,25 @@ def carregar_dados():
     df["Valor Solicitado"] = df["Valor Solicitado"].apply(limpar_moeda)
     df["Valor Pago"] = df["Valor Pago"].apply(limpar_moeda)
 
-    # Registros antigos não têm Criado Em.
-    df["Criado Em"] = pd.to_datetime(
+    # Registros antigos não têm "Criado Em".
+    # Usamos dtype object para evitar incompatibilidades entre versões
+    # recentes do Pandas ao preencher valores ausentes em datetime.
+    criado_em = pd.to_datetime(
         df["Criado Em"],
         errors="coerce",
     )
 
-    # Fallback para registros antigos: usa a posição da linha.
-    if df["Criado Em"].isna().any():
-        agora = pd.Timestamp.now()
-        df.loc[df["Criado Em"].isna(), "Criado Em"] = agora
+    # Para registros antigos, usa a data do pedido como fallback.
+    # Isso é suficiente para manter a ordenação cronológica e não
+    # altera os dados existentes no Google Sheets.
+    data_fallback = pd.to_datetime(
+        df["Data"],
+        errors="coerce",
+    )
+
+    df["Criado Em"] = criado_em.astype("object")
+    faltantes = df["Criado Em"].isna()
+    df.loc[faltantes, "Criado Em"] = data_fallback.loc[faltantes].astype("object")
 
     return df[COLUNAS]
 
