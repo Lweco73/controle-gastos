@@ -18,9 +18,10 @@ def conectar_planilha():
     cred_dict = json.loads(st.secrets["google_credentials"])
     gc = gspread.service_account_from_dict(cred_dict)
     sh = gc.open("Controle Despesas Filhas")
-    return sh.sheet1
+    return sh, sh.sheet1
 
-planilha = conectar_planilha()
+# Retorna a planilha inteira (sh) e a aba principal (sheet1)
+sh, planilha = conectar_planilha()
 
 def carregar_dados():
     registros = planilha.get_all_records()
@@ -29,7 +30,6 @@ def carregar_dados():
     
     df_temp = pd.DataFrame(registros)
     
-    # Garantir que a coluna 'Descricao Pedido' exista mesmo se a planilha antiga não tiver
     if "Descricao Pedido" not in df_temp.columns:
         df_temp["Descricao Pedido"] = ""
 
@@ -74,7 +74,6 @@ if perfil == "Filha (Fazer Pedido)":
         ["Lanche da Escola", "Transporte/Uber", "Material Escolar", "Passeio/Lazer", "Vestuário", "Outros"]
     )
     
-    # NOVO CAMPO: Descrição detalhada opcional
     descricao_pedido = st.text_input("Descrição do pedido (Opcional - ex: Livro de Biologia, Lanche na padaria)")
     
     botao_enviar = st.form_submit_button("Enviar Solicitação")
@@ -83,7 +82,6 @@ if perfil == "Filha (Fazer Pedido)":
       if valor_solicitado > 0:
         novo_id = int(df["ID"].max() + 1) if not df.empty and pd.notna(df["ID"].max()) else 1
         
-        # Salva na planilha (incluindo a descrição na coluna I)
         planilha.append_row([
             novo_id, 
             data_pedido.strftime("%d/%m/%Y"), 
@@ -151,11 +149,11 @@ elif perfil == "Responsável (Painel & Aprovação)":
             if st.button("Confirmar", key="btn_apagar"):
                 celula = planilha.find(str(id_escolhido), in_column=1)
                 if celula:
-                    planilha.delete_row(celula.row)
+                    # Correção aplicada: deleta a linha corretamente utilizando a aba referenciada
+                    planilha.delete_rows(celula.row)
                     st.success("✅ Apagado!")
                     st.rerun()
     
-    # Exibir a descrição detalhada para a Responsável ler com facilidade
     if pd.notna(linha_selecionada['Descricao Pedido']) and linha_selecionada['Descricao Pedido'] != "":
         st.info(f"📌 **Detalhes informados pela filha:** {linha_selecionada['Descricao Pedido']}")
 
