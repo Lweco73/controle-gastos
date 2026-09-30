@@ -36,7 +36,7 @@ def carregar_dados():
     df_temp = pd.DataFrame(registros)
     
     # Garantir colunas essenciais caso a planilha esteja em formato antigo
-for col in ["ID", "Data", "Filha", "Valor Solicitado", "Objetivo", "Status", "Valor Pago", "Observacao", "Descricao Pedido"]:
+    for col in ["ID", "Data", "Filha", "Valor Solicitado", "Objetivo", "Status", "Valor Pago", "Observacao", "Descricao Pedido"]:
         if col not in df_temp.columns:
             df_temp[col] = ""
 
@@ -92,7 +92,6 @@ if perfil == "Filha (Fazer Pedido)":
 
     if botao_enviar:
       if valor_solicitado > 0:
-        # Cálculo seguro de ID (se vazio começa em 1)
         novo_id = int(df["ID"].max() + 1) if not df.empty and pd.notna(df["ID"].max()) and df["ID"].max() > 0 else 1
         
         planilha.append_row([
@@ -128,7 +127,7 @@ if perfil == "Filha (Fazer Pedido)":
 # TELA 2: RESPONSÁVEL
 # ---------------------------------------------------------
 elif perfil == "Responsável (Painel & Aprovação)":
-  st.subheader("⚙️ Painel de Gestão e Aprovação (Responsável)")
+  st.subheader("⚙️️ Painel de Gestão e Aprovação (Responsável)")
   if df.empty or df["ID"].max() == 0:
     st.info("Nenhuma solicitação registrada.")
   else:
